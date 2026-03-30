@@ -824,6 +824,31 @@ def tdroid_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     return trajectory
 
 
+def go_vla_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
+    """Standardize the Go benchmark dataset to OpenVLA's gripper convention.
+
+    The benchmark environment uses raw robot commands (`-1=open`, `+1=close`),
+    while OpenVLA expects the last action dimension to be an absolute gripper
+    command in `[0, 1]` with `1=open`, `0=close`. Newer RLDS builds already
+    store that OpenVLA convention, but older local builds may still contain the
+    raw benchmark values, so we normalize both cases here.
+    """
+    trajectory["action"] = tf.cast(trajectory["action"], tf.float32)
+    trajectory["observation"]["state"] = tf.cast(trajectory["observation"]["state"], tf.float32)
+
+    gripper_action = trajectory["action"][:, 3:4]
+    uses_openvla_gripper = tf.reduce_all(
+        tf.logical_and(gripper_action >= 0.0, gripper_action <= 1.0)
+    )
+    standardized_gripper = tf.cond(
+        uses_openvla_gripper,
+        lambda: gripper_action,
+        lambda: tf.where(gripper_action <= 0.0, tf.ones_like(gripper_action), tf.zeros_like(gripper_action)),
+    )
+    trajectory["action"] = tf.concat([trajectory["action"][:, :3], standardized_gripper], axis=1)
+    return trajectory
+
+
 def libero_dataset_transform(trajectory: Dict[str, Any]) -> Dict[str, Any]:
     # gripper action is in -1 (open)...1 (close) --> clip to 0...1, flip --> +1 = open, 0 = close
     gripper_action = trajectory["action"][:, -1:]
@@ -914,6 +939,7 @@ OXE_STANDARDIZATION_TRANSFORMS = {
     "tdroid_cover_object_with_towel": tdroid_dataset_transform,
     ### DROID Finetuning datasets
     "droid_wipe": droid_finetuning_transform,
+    "go_vla_dataset": go_vla_dataset_transform,
     ### LIBERO datasets (modified versions)
     "libero_spatial_no_noops": libero_dataset_transform,
     "libero_object_no_noops": libero_dataset_transform,

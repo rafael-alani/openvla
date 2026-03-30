@@ -641,6 +641,16 @@ OXE_DATASET_CONFIGS = {
         "state_encoding": StateEncoding.POS_EULER,
         "action_encoding": ActionEncoding.EEF_POS,
     },
+    "go_vla_dataset": {
+        "image_obs_keys": {"primary": "image", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "state_obs_keys": ["state"],
+        "state_encoding": StateEncoding.NONE,
+        "action_encoding": ActionEncoding.EEF_POS,
+        # Custom 4-DoF action layout: [dx, dy, dz, gripper].
+        "absolute_action_mask": [False, False, False, True],
+        "action_normalization_mask": [True, True, True, False],
+    },
     ### LIBERO datasets (modified versions)
     "libero_spatial_no_noops": {
         "image_obs_keys": {"primary": "image", "secondary": None, "wrist": "wrist_image"},

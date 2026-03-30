@@ -32,14 +32,23 @@ def make_oxe_dataset_kwargs(
     if dataset_kwargs["action_encoding"] not in [ActionEncoding.EEF_POS, ActionEncoding.EEF_R6]:
         raise ValueError(f"Cannot load `{dataset_name}`; only EEF_POS & EEF_R6 actions supported!")
 
-    # [Contract] For EEF_POS & EEF_R6 actions, only the last action dimension (gripper) is absolute!
-    # Normalize all action dimensions *except* the gripper
-    if dataset_kwargs["action_encoding"] is ActionEncoding.EEF_POS:
-        dataset_kwargs["absolute_action_mask"] = [False] * 6 + [True]
-        dataset_kwargs["action_normalization_mask"] = [True] * 6 + [False]
-    elif dataset_kwargs["action_encoding"] is ActionEncoding.EEF_R6:
-        dataset_kwargs["absolute_action_mask"] = [False] * 9 + [True]
-        dataset_kwargs["action_normalization_mask"] = [True] * 9 + [False]
+    # [Contract] For EEF_POS & EEF_R6 actions, only the last action dimension (gripper) is absolute.
+    # Custom datasets may override this by providing explicit masks in their config.
+    has_explicit_absolute_mask = "absolute_action_mask" in dataset_kwargs
+    has_explicit_normalization_mask = "action_normalization_mask" in dataset_kwargs
+    if has_explicit_absolute_mask != has_explicit_normalization_mask:
+        raise ValueError(
+            f"Cannot load `{dataset_name}`; custom action masks must provide both "
+            "`absolute_action_mask` and `action_normalization_mask`."
+        )
+    if not has_explicit_absolute_mask:
+        # Normalize all action dimensions *except* the gripper.
+        if dataset_kwargs["action_encoding"] is ActionEncoding.EEF_POS:
+            dataset_kwargs["absolute_action_mask"] = [False] * 6 + [True]
+            dataset_kwargs["action_normalization_mask"] = [True] * 6 + [False]
+        elif dataset_kwargs["action_encoding"] is ActionEncoding.EEF_R6:
+            dataset_kwargs["absolute_action_mask"] = [False] * 9 + [True]
+            dataset_kwargs["action_normalization_mask"] = [True] * 9 + [False]
     dataset_kwargs["action_proprio_normalization_type"] = action_proprio_normalization_type
 
     # Adjust Loaded Camera Views
